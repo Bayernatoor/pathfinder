@@ -1,29 +1,30 @@
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OutPoint {
-    txid: String,
-    index: u32,
+    pub txid: String,
+    pub index: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Transaction {
-    txid: String,
-    vin: Vec<TxInput>,
-    vout: Vec<TxOutput>,
-    blockheight: u32,
-    timestamp: u64,
-    amount: u64,
+    pub txid: String,
+    pub vin: Vec<TxInput>,
+    pub vout: Vec<TxOutput>,
+    pub blockhash: String,
+    pub timestamp: u64,
+    pub amount: f64,
 }
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TxInput {
-    previous_outpoint: OutPoint,
-    scriptsig: String,
+    pub prevout: OutPoint,
+    pub scriptsig: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TxOutput {
-    index: u32,
-    value: u64,
-    scriptpubkey: String,
-    address: Option<String>,
+    pub index: u32,
+    pub value: f64,
+    pub scriptpubkey: String,
+    pub address: Option<String>,
 }

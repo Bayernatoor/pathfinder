@@ -13,7 +13,7 @@ pub enum BlockchainError {
     #[error("Data is inconsistent")]
     DataInconsistency(String),
     #[error("{0}")]
-    Other(#[from] anyhow::Error),
+    Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, BlockchainError>;
