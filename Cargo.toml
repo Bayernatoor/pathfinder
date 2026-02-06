@@ -11,3 +11,5 @@ tokio = { version = "1.49.0", features = ["full"] }
 reqwest = { version = "0.13", features = ["json"] }
 async-trait = "0.1.89"
 uuid = { version = "1.19.0", features = ["v4"] }
+bitcoin = { version = "0.32.8", features = ["serde"] }
+mockito = "1.7.2"
