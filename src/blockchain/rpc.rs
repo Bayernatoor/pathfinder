@@ -1,7 +1,7 @@
 use crate::blockchain::{BlockchainDataSource, BlockchainError, Result};
-use crate::models::{OutPoint, Transaction, TxInput, TxOutput};
 use async_trait::async_trait;
-use serde_json::json;
+use bitcoin::{Block, consensus::encode::deserialize_hex, transaction};
+use serde_json::{Value, json};
 
 #[derive(Debug, Clone)]
 pub struct BitcoinRpcClient {
@@ -45,6 +45,7 @@ impl BitcoinRpcClient {
             .send()
             .await
             .map_err(|e| BlockchainError::NetworkFailure(e.to_string()))?;
+        // print!("response {:?}", response);
 
         // convert response to serde_json value
         let json_response: serde_json::Value = response
@@ -55,13 +56,25 @@ impl BitcoinRpcClient {
 
         if let Some(rpc_error) = json_response.get("error").and_then(|e| e.as_object()) {
             if !rpc_error.is_empty() {
-                return Err(BlockchainError::Other(
-                    rpc_error
-                        .get("message")
-                        .and_then(|m| m.as_str())
-                        .unwrap_or("Unknown Error")
-                        .to_string(),
-                ));
+                let code = rpc_error.get("code").and_then(|c| c.as_i64()).unwrap_or(0);
+
+                let message = rpc_error
+                    .get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("Unknown RPC Error");
+
+                // Map JSON RPC errors to BlockchainError
+                // Codes are specific to transaction related errors
+                match code {
+                    -5 | -20 => return Err(BlockchainError::NotFound(message.to_string())),
+                    -8 | -22 => return Err(BlockchainError::InvalidInput(message.to_string())),
+                    -32603 => return Err(BlockchainError::Other(message.to_string())),
+                    _ => {
+                        return Err(BlockchainError::Other(format!(
+                            "RPC error {code}: {message}"
+                        )));
+                    }
+                }
             }
         }
 
@@ -76,130 +89,62 @@ impl BitcoinRpcClient {
 
 #[async_trait]
 impl BlockchainDataSource for BitcoinRpcClient {
-    async fn get_transaction(&self, txid: &str) -> Result<Transaction> {
-        let rpc_client = BitcoinRpcClient::new(
-            "http://127.0.0.1:8332".to_string(),
-            "testnode".to_string(),
-            "asdjio3u2o23d32dpiadas".to_string(),
-        );
-
-        let rpc_result = rpc_client
+    async fn get_transaction(&self, txid: bitcoin::Txid) -> Result<bitcoin::Transaction> {
+        let rpc_result: Value = self
             .rpc_call("getrawtransaction", vec![json!(txid), json!(1)])
-            .await
-            .unwrap();
+            .await?;
 
-        // Extract some basic fields
-        let txid = rpc_result
-            .get("txid")
-            .expect("txid should always be present")
-            .to_string();
-        let blocktime = rpc_result
-            .get("blocktime")
-            .unwrap()
-            .as_u64()
-            .expect("Blocktime should always be present");
-        let blockhash = rpc_result
-            .get("blockhash")
-            .expect("Blockhash should always be present")
-            .to_string();
+        // Extract hex string
+        let hex_str = rpc_result
+            .get("hex")
+            .and_then(|h| h.as_str())
+            .ok_or_else(|| {
+                BlockchainError::DataInconsistency(
+                    "RPC response is missing 'hex' field or type is invalid".to_string(),
+                )
+            })?;
 
-        // Generate my TxInputs
-        // This checks to see if the Transaction is a Coinbase TX and handles it appropriately
-        let mut tx_vins: Vec<TxInput> = vec![];
+        // Deserialize hex value into a bitcoin::Transaction
+        let transaction = deserialize_hex(hex_str).map_err(|e| {
+            BlockchainError::DataInconsistency(format!(
+                "Failed to deserialize Hex {:?}, for Txid {:?}: {:?}",
+                hex_str, txid, e
+            ))
+        })?;
 
-        if let Some(vin) = rpc_result.get("vin").and_then(|vin| vin.as_array()) {
-            if let Some(coinbase) = vin[0].get("coinbase") {
-                print!("Is a Coinbase tx\n");
-                let tx_input = TxInput {
-                    prevout: OutPoint {
-                        txid: coinbase.to_string(),
-                        index: 0,
-                    },
-                    scriptsig: "None".to_string(),
-                };
-                tx_vins.push(tx_input);
-            } else {
-                for input in vin {
-                    print!("Not a Coinbase tx\n");
-                    let txid = input.get("txid").unwrap().to_string();
-                    let index = input.get("vout").unwrap().as_u64().unwrap() as u32;
-                    let tx_input = TxInput {
-                        prevout: OutPoint { txid, index },
-                        scriptsig: input.get("scriptSig").unwrap().to_string(),
-                    };
-                    tx_vins.push(tx_input);
-                }
-            }
-        }
-
-        // Generate my TxOutputs
-        let mut tx_vouts: Vec<TxOutput> = vec![];
-
-        if let Some(vout) = rpc_result.get("vout").and_then(|vout| vout.as_array()) {
-            for output in vout {
-                let index = output.get("n").unwrap().as_u64().unwrap() as u32;
-                let value = output.get("value").unwrap().as_f64().unwrap();
-                let mut scriptpubkey = String::new();
-                let mut address = Some(String::new());
-                if let Some(script_pub_key_obj) =
-                    output.get("scriptPubKey").and_then(|v| v.as_object())
-                {
-                    scriptpubkey = script_pub_key_obj
-                        .get("hex")
-                        .unwrap()
-                        .as_str()
-                        .unwrap()
-                        .to_string();
-                    address = script_pub_key_obj
-                        .get("address")
-                        .and_then(|v| Some(v.to_string()))
-                }
-
-                let tx_output = TxOutput {
-                    index,
-                    value,
-                    scriptpubkey,
-                    address,
-                };
-
-                tx_vouts.push(tx_output);
-            }
-        }
-
-        // Get the total transaction amount
-        let mut amount: f64 = 0.0;
-        if let Some(vout) = rpc_result["vout"].as_array() {
-            for output in vout {
-                let value = output.get("value").and_then(|v| v.as_f64()).unwrap();
-                amount += value;
-            }
-        }
-
-        // Build my Transaction
-        let transaction = Transaction {
-            txid,
-            vin: tx_vins,
-            vout: tx_vouts,
-            blockhash,
-            timestamp: blocktime,
-            amount,
-        };
         Ok(transaction)
     }
 
-    async fn get_spending_transaction(&self, outpoint: &OutPoint) -> Result<Option<Transaction>> {
+    async fn get_spending_transaction(
+        &self,
+        outpoint: bitcoin::OutPoint,
+    ) -> Result<Option<bitcoin::Transaction>> {
         todo!()
     }
-    async fn get_address_transactions(&self, address: &str) -> Result<Vec<Transaction>> {
+    async fn get_address_transactions(
+        &self,
+        address: bitcoin::Address,
+    ) -> Result<Vec<bitcoin::Transaction>> {
         todo!()
     }
-    async fn get_transactions_batch(&self, txids: &[&str]) -> Result<Vec<Option<Transaction>>> {
+    async fn get_transactions_batch(
+        &self,
+        txids: &[bitcoin::Txid],
+    ) -> Result<Vec<Option<bitcoin::Transaction>>> {
         todo!()
     }
     async fn get_spending_transactions_batch(
         &self,
-        outpoints: &[&OutPoint],
-    ) -> Result<Vec<Option<Transaction>>> {
+        outpoints: &[bitcoin::OutPoint],
+    ) -> Result<Vec<Option<bitcoin::Transaction>>> {
         todo!()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_transaction() -> () {}
 }
