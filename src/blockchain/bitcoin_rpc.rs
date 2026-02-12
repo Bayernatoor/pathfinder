@@ -1,6 +1,6 @@
 use crate::blockchain::{BlockchainDataSource, BlockchainError, Result};
 use async_trait::async_trait;
-use bitcoin::{Block, consensus::encode::deserialize_hex, transaction};
+use bitcoin::{OutPoint, Transaction, consensus::encode::deserialize_hex};
 use serde_json::{Value, json};
 
 #[derive(Debug, Clone)]
@@ -114,7 +114,6 @@ impl BlockchainDataSource for BitcoinRpcClient {
 
         Ok(transaction)
     }
-
     async fn get_spending_transaction(
         &self,
         outpoint: bitcoin::OutPoint,
@@ -139,12 +138,4 @@ impl BlockchainDataSource for BitcoinRpcClient {
     ) -> Result<Vec<Option<bitcoin::Transaction>>> {
         todo!()
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_get_transaction() -> () {}
 }
