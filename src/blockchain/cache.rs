@@ -1,19 +1,23 @@
+use crate::blockchain::{BlockchainDataSource, BlockchainError, Result};
+use async_trait::async_trait;
 use bitcoin::{OutPoint, Transaction};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
     time::Duration,
 };
+use tokio::time::Instant;
 
-use async_trait::async_trait;
+// A cache entry - includes a bitcoin::Transaction and Tokio Instant// struct
+pub struct CachedEntry {
+    transaction: Transaction,
+    inserted_at: Instant,
+}
 
-use crate::blockchain::{BlockchainDataSource, BlockchainError, Result};
-
-pub struct CachedValue {}
-
-pub struct CachingDataSource<C: BlockchainDataSource> {
+// Caching struct which wraps around any BlockchainDataSource
+pub struct CachingDataSource<C> {
     inner: C,
-    cache: Arc<RwLock<HashMap<String, CachedValue>>>,
+    cache: Arc<RwLock<HashMap<String, CachedEntry>>>,
     ttl: Duration,
 }
 
