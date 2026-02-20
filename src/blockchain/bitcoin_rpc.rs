@@ -55,27 +55,28 @@ impl BitcoinRpcClient {
         // print!("json_response from rpc call {:?}", json_response);
 
         if let Some(rpc_error) = json_response.get("error").and_then(|e| e.as_object())
-            && !rpc_error.is_empty() {
-                let code = rpc_error.get("code").and_then(|c| c.as_i64()).unwrap_or(0);
+            && !rpc_error.is_empty()
+        {
+            let code = rpc_error.get("code").and_then(|c| c.as_i64()).unwrap_or(0);
 
-                let message = rpc_error
-                    .get("message")
-                    .and_then(|m| m.as_str())
-                    .unwrap_or("Unknown RPC Error");
+            let message = rpc_error
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("Unknown RPC Error");
 
-                // Map JSON RPC errors to BlockchainError
-                // Codes are specific to transaction related errors
-                match code {
-                    -5 | -20 => return Err(BlockchainError::NotFound(message.to_string())),
-                    -8 | -22 => return Err(BlockchainError::InvalidInput(message.to_string())),
-                    -32603 => return Err(BlockchainError::Other(message.to_string())),
-                    _ => {
-                        return Err(BlockchainError::Other(format!(
-                            "RPC error {code}: {message}"
-                        )));
-                    }
+            // Map JSON RPC errors to BlockchainError
+            // Codes are specific to transaction related errors
+            match code {
+                -5 | -20 => return Err(BlockchainError::NotFound(message.to_string())),
+                -8 | -22 => return Err(BlockchainError::InvalidInput(message.to_string())),
+                -32603 => return Err(BlockchainError::Other(message.to_string())),
+                _ => {
+                    return Err(BlockchainError::Other(format!(
+                        "RPC error {code}: {message}"
+                    )));
                 }
             }
+        }
 
         // Extract and return the result field
         let result = json_response.get("result").cloned().ok_or_else(|| {

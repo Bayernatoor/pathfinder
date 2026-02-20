@@ -1,8 +1,5 @@
 use bitcoin::{OutPoint, Txid};
-use pathfinder::blockchain::{
-    BlockchainDataSource, CachingDataSource, EsploraClient,
-    Result,
-};
+use pathfinder::blockchain::{BlockchainDataSource, CachingDataSource, EsploraClient, Result};
 use std::{
     str::FromStr,
     time::{Duration, Instant},

@@ -89,10 +89,11 @@ impl<C: BlockchainDataSource + std::marker::Sync> BlockchainDataSource for Cachi
         {
             let cache = self.cache.read().unwrap();
             if let Some(entry) = cache.get(&key)
-                && entry.inserted_at.elapsed() < self.ttl {
-                    return Ok(entry.transaction.clone());
-                }
-                // Entry expired, fetch it
+                && entry.inserted_at.elapsed() < self.ttl
+            {
+                return Ok(entry.transaction.clone());
+            }
+            // Entry expired, fetch it
         }
 
         // cache miss or expired, fetch Transaction from source
@@ -122,10 +123,11 @@ impl<C: BlockchainDataSource + std::marker::Sync> BlockchainDataSource for Cachi
         {
             let cache = self.cache.read().unwrap();
             if let Some(entry) = cache.get(&key)
-                && entry.inserted_at.elapsed() < self.ttl {
-                    return Ok(Some(entry.transaction.clone()));
-                }
-                // Entry expired, fetch it
+                && entry.inserted_at.elapsed() < self.ttl
+            {
+                return Ok(Some(entry.transaction.clone()));
+            }
+            // Entry expired, fetch it
         }
 
         // cache miss or expired, fetch Transaction from source
