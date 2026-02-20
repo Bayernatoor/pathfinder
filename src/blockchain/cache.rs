@@ -5,7 +5,7 @@
 //!
 //! Critical for performance when handling large traces where paths converge.
 
-use crate::blockchain::{BlockchainDataSource, BlockchainError, Result};
+use crate::blockchain::{BlockchainDataSource, Result};
 use async_trait::async_trait;
 use bitcoin::{Address, OutPoint, Transaction, Txid};
 use std::{
@@ -88,12 +88,11 @@ impl<C: BlockchainDataSource + std::marker::Sync> BlockchainDataSource for Cachi
         // Check the cache (read lock)
         {
             let cache = self.cache.read().unwrap();
-            if let Some(entry) = cache.get(&key) {
-                if entry.inserted_at.elapsed() < self.ttl {
+            if let Some(entry) = cache.get(&key)
+                && entry.inserted_at.elapsed() < self.ttl {
                     return Ok(entry.transaction.clone());
                 }
                 // Entry expired, fetch it
-            }
         }
 
         // cache miss or expired, fetch Transaction from source
@@ -122,12 +121,11 @@ impl<C: BlockchainDataSource + std::marker::Sync> BlockchainDataSource for Cachi
         // check the cache (read lock)
         {
             let cache = self.cache.read().unwrap();
-            if let Some(entry) = cache.get(&key) {
-                if entry.inserted_at.elapsed() < self.ttl {
+            if let Some(entry) = cache.get(&key)
+                && entry.inserted_at.elapsed() < self.ttl {
                     return Ok(Some(entry.transaction.clone()));
                 }
                 // Entry expired, fetch it
-            }
         }
 
         // cache miss or expired, fetch Transaction from source

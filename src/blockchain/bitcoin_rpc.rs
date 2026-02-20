@@ -1,6 +1,6 @@
 use crate::blockchain::{BlockchainDataSource, BlockchainError, Result};
 use async_trait::async_trait;
-use bitcoin::{OutPoint, Transaction, consensus::encode::deserialize_hex};
+use bitcoin::consensus::encode::deserialize_hex;
 use serde_json::{Value, json};
 
 #[derive(Debug, Clone)]
@@ -54,8 +54,8 @@ impl BitcoinRpcClient {
             .map_err(|e| BlockchainError::NetworkFailure(e.to_string()))?;
         // print!("json_response from rpc call {:?}", json_response);
 
-        if let Some(rpc_error) = json_response.get("error").and_then(|e| e.as_object()) {
-            if !rpc_error.is_empty() {
+        if let Some(rpc_error) = json_response.get("error").and_then(|e| e.as_object())
+            && !rpc_error.is_empty() {
                 let code = rpc_error.get("code").and_then(|c| c.as_i64()).unwrap_or(0);
 
                 let message = rpc_error
@@ -76,7 +76,6 @@ impl BitcoinRpcClient {
                     }
                 }
             }
-        }
 
         // Extract and return the result field
         let result = json_response.get("result").cloned().ok_or_else(|| {
@@ -116,25 +115,25 @@ impl BlockchainDataSource for BitcoinRpcClient {
     }
     async fn get_spending_transaction(
         &self,
-        outpoint: bitcoin::OutPoint,
+        _outpoint: bitcoin::OutPoint,
     ) -> Result<Option<bitcoin::Transaction>> {
         todo!()
     }
     async fn get_address_transactions(
         &self,
-        address: bitcoin::Address,
+        _address: bitcoin::Address,
     ) -> Result<Vec<bitcoin::Transaction>> {
         todo!()
     }
     async fn get_transactions_batch(
         &self,
-        txids: &[bitcoin::Txid],
+        _txids: &[bitcoin::Txid],
     ) -> Result<Vec<Option<bitcoin::Transaction>>> {
         todo!()
     }
     async fn get_spending_transactions_batch(
         &self,
-        outpoints: &[bitcoin::OutPoint],
+        _outpoints: &[bitcoin::OutPoint],
     ) -> Result<Vec<Option<bitcoin::Transaction>>> {
         todo!()
     }

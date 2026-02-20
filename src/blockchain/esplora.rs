@@ -54,7 +54,7 @@ struct OutspendResponse {
     txid: Option<Txid>,
     /// Input index of the spending transaction, will only be present if spent == true
     #[serde(default)]
-    vin: Option<u32>,
+    _vin: Option<u32>,
 }
 
 #[async_trait]
@@ -201,6 +201,7 @@ mod tests {
 
     /// Uses real network and could fail for many reasons. Will improve in the future.
     #[tokio::test]
+    #[ignore] // Hits real API, don't want this running in CI yet.
     async fn test_esplora_outspend() {
         let client = EsploraClient::new("https://mempool.space/api".to_string());
 

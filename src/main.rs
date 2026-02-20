@@ -1,16 +1,14 @@
-use bitcoin::{OutPoint, Txid, consensus::encode::deserialize_hex, policy::DEFAULT_MEMPOOL_EXPIRY};
-use bitcoin_hashes::{Hash, Sha256};
+use bitcoin::{OutPoint, Txid};
 use pathfinder::blockchain::{
-    BitcoinRpcClient, BlockchainDataSource, BlockchainError, CachingDataSource, EsploraClient,
+    BlockchainDataSource, CachingDataSource, EsploraClient,
     Result,
 };
-use serde_json::{Value, json, to_string_pretty};
 use std::{
     str::FromStr,
-    time::{self, Duration, Instant},
+    time::{Duration, Instant},
 };
 
-pub async fn mempool_esplora(outpoint: OutPoint) -> Result<Option<bitcoin::Transaction>> {
+pub async fn mempool_esplora(_outpoint: OutPoint) -> Result<Option<bitcoin::Transaction>> {
     todo!()
 }
 
