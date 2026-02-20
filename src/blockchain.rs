@@ -5,7 +5,7 @@ pub mod esplora;
 pub mod source;
 
 pub use bitcoin_rpc::BitcoinRpcClient;
-// pub use cache::CachingDataSource;
+pub use cache::{CacheKey, CachedEntry, CachingDataSource};
 pub use error::{BlockchainError, Result};
-// pub use esplora::EsploreClient;
+pub use esplora::EsploraClient;
 pub use source::BlockchainDataSource;

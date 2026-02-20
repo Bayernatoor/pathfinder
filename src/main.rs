@@ -1,33 +1,78 @@
-use bitcoin::consensus::encode::deserialize_hex;
-use pathfinder::blockchain::{BitcoinRpcClient, BlockchainError};
+use bitcoin::{OutPoint, Txid, consensus::encode::deserialize_hex, policy::DEFAULT_MEMPOOL_EXPIRY};
+use bitcoin_hashes::{Hash, Sha256};
+use pathfinder::blockchain::{
+    BitcoinRpcClient, BlockchainDataSource, BlockchainError, CachingDataSource, EsploraClient,
+    Result,
+};
 use serde_json::{Value, json, to_string_pretty};
+use std::{
+    str::FromStr,
+    time::{self, Duration, Instant},
+};
+
+pub async fn mempool_esplora(outpoint: OutPoint) -> Result<Option<bitcoin::Transaction>> {
+    todo!()
+}
 
 #[tokio::main]
-async fn main() {
-    let rpc_client = BitcoinRpcClient::new(
-        "http://127.0.0.1:8332".to_string(),
-        "testnode".to_string(),
-        "asdjio3u2o23d32dpiadas".to_string(),
+async fn main() -> Result<()> {
+    let txid =
+        Txid::from_str("15e10745f15593a899cef391191bdd3d7c12412cc4696b7bcb669d0feadc8521").unwrap();
+
+    let outpoint = OutPoint::new(txid, 3);
+
+    let client = EsploraClient::new("https://mempool.space/api".to_string());
+    let cache = CachingDataSource::new(client, Duration::from_secs(300));
+
+    println!("=== Testing get_transaction caching ===\n");
+
+    // First fetch (cache miss)
+    let start = Instant::now();
+    cache.get_transaction(txid).await?;
+    println!("UNCACHED: {} ms", start.elapsed().as_millis());
+
+    // Second fetch (cache hit)
+    let start = Instant::now();
+    cache.get_transaction(txid).await?;
+    println!("CACHED:   {} ms", start.elapsed().as_millis());
+
+    println!("\n=== Testing get_spending_transaction caching ===\n");
+
+    // First fetch (cache miss)
+    let start = Instant::now();
+    let spending = cache.get_spending_transaction(outpoint).await?;
+    println!("UNCACHED: {} ms", start.elapsed().as_millis());
+
+    // Second fetch (cache hit)
+    let start = Instant::now();
+    cache.get_spending_transaction(outpoint).await?;
+    println!("CACHED:   {} ms", start.elapsed().as_millis());
+    match spending {
+        Some(tx) => println!("\nOutput spent by: {}", tx.compute_txid()),
+        None => println!("\nOutput is unspent"),
+    }
+    println!("\n--- Testing TTL expiration ---");
+
+    let short_ttl_cache = CachingDataSource::new(
+        EsploraClient::new("https://mempool.space/api/".to_string()),
+        Duration::from_secs(2), // 2-second TTL
     );
 
-    let coinbase_txid = vec![
-        json!("ea30577074d9a93457b2c0b87bb33ad2942dca1845ef88c5538512b27388f260"),
-        json!(1),
-    ];
-    // let txid = vec![
-    //     json!("44aa39aa88d6da9747efe4efbbcfbc0cfed390bc031a28e6679bde3b3223e9b4"),
-    //     json!(1),
-    // ];
-    let rpc_result = rpc_client
-        .rpc_call("getrawtransaction", coinbase_txid)
-        .await
-        .unwrap();
+    println!("Fetching tx (will cache)...");
+    short_ttl_cache.get_transaction(txid).await.unwrap();
 
-    // print!("result {:?}", rpc_result);
+    println!("Fetching again immediately (should be cached)...");
+    let now = Instant::now();
+    short_ttl_cache.get_transaction(txid).await.unwrap();
+    println!("Cached: {} ms", now.elapsed().as_millis());
 
-    let transaction: bitcoin::Transaction = match rpc_result.get("hex") {
-        Some(hex) => deserialize_hex(&hex.as_str().unwrap()).unwrap(),
-        None => panic!(),
-    };
-    //
+    println!("Waiting 3 seconds for TTL expiration...");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+
+    println!("Fetching again after expiration (should re-fetch)...");
+    let now = Instant::now();
+    short_ttl_cache.get_transaction(txid).await.unwrap();
+    println!("Re-fetched: {} ms", now.elapsed().as_millis());
+
+    Ok(())
 }
