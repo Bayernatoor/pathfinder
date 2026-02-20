@@ -9,7 +9,7 @@ A Bitcoin UTXO tracing tool for the PEOPLE
 - [x] Bitcoin Core RPC client (basic transaction fetching)
 - [x] Esplora API client (with spending transaction lookup)
 - [x] TTL-based caching layer (decorator pattern)
-- [] UTXO tracing engine (next up)
+- [ ] UTXO tracing engine (next up)
 
 ## Architecture
 
