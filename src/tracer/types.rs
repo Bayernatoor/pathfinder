@@ -85,14 +85,22 @@ pub struct Terminal {
 /// Indicates the condition that caused the tracer to stop following a path.
 #[derive(Debug, Clone, Serialize)]
 pub enum TerminalReason {
+    /// Output has not been spent
     Unspent,
+    /// Reached max trace depth limit
     MaxDepthReached,
+    /// Output value below min threshold
     BelowMinValue,
+    /// Output spent to identified excchange address
     Exchange(String),
+    /// Output spent to identified coin mixer
     Mixer(String),
+    // Output spent to identified sanctioned address
     Sanctioned(String),
-    Other(String),
+    /// Could not determine if spent
     DataUnavailable,
+    /// Other termination reason (catch-all)
+    Other(String),
 }
 
 /// Summary statistics about a completed trace.
